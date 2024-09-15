@@ -3,7 +3,8 @@ import jax
 from functools import partial
 
 import numpy as onp
-import timeit
+
+from .sparse import Matrix
 
 
 @jax.jit
@@ -68,8 +69,6 @@ def solve(
         f = jax.scipy.linalg.cho_factor(lhs)
         dx = jax.scipy.linalg.cho_solve(f, rhs)
         x = x + dx
-
-        # Evaluate constraints
         eq, ineq = evaluate_constraints(x)
 
         # Update dual variables
@@ -185,9 +184,6 @@ def solve_in_osqp_format(
     """
     idx_eq = l == u
 
-    P = P.todense()
-    A = A.todense()
-
     C = A[idx_eq, :]
     d = u[idx_eq]
 
@@ -230,3 +226,59 @@ def solve_in_osqp_format(
     x, y_eq, y_ineq, eq, ineq, iteration_al, succeeded = outputs
 
     return x, iteration_al, succeeded
+
+
+def sparse_solver_exporter(
+    P,
+    C,
+    G,
+    *,
+    max_al_iterations=10,
+    c_threshold=1e-6,
+    complementary_slackness_threshold=1e-6,
+    penalty_init=1.0,
+    penalty_update_rate=10.0,
+):
+    """
+    Based on the statically-determined sparsity patterns of P, C, and G,
+    returns a QP solver that exploits these sparsity patterns in its internal
+    Newton-KKT linear system solves.
+    The supported optimization problems have the following form:
+        min_x (0.5 x^T P x + q^T x) s.t. (Cx = d and Gx <= h)
+    """
+    sparse_P = Matrix.fromdense(P)
+    sparse_C = Matrix.fromdense(C)
+    sparse_G = Matrix.fromdense(G)
+
+    def exported_solve(
+        P_data,
+        q,
+        C_data,
+        d,
+        G_data,
+        h,
+        ws_x,
+    ):
+        """
+        The data vectors of the sparse matrices should be passed in CSR form.
+        Note that the entire matrix data should be passed, not only one lower/upper triangle.
+        """
+        sparse_P.data = P_data
+        sparse_C.data = C_data
+        sparse_G.data = G_data
+        return solve(
+            P=sparse_P,
+            q=q,
+            C=sparse_C,
+            d=d,
+            G=sparse_G,
+            h=h,
+            ws_x=ws_x,
+            max_al_iterations=max_al_iterations,
+            c_threshold=c_threshold,
+            complementary_slackness_threshold=complementary_slackness_threshold,
+            penalty_init=penalty_init,
+            penalty_update_rate=penalty_update_rate,
+        )
+
+    return jax.jit(exported_solve)
