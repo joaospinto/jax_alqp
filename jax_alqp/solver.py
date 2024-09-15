@@ -59,16 +59,33 @@ def solve(
         ) = inputs
 
         # Update primal variables
-        al = partial(
-            augmented_lagrangian, y_eq=y_eq, y_ineq=y_ineq, penalty=penalty
-        )
+        if isinstance(P, Matrix):
+            assert isinstance(C, Matrix)
+            assert isinstance(G, Matrix)
+            active_set = np.invert(np.isclose(y_ineq, 0.0) & (ineq < 0.0))
+            G_mod = active_set * G
+            lhs = P + penalty * (C.XTX() + G_mod.XTX())
+            rhs = -(
+                P @ x
+                + q
+                + C.T @ y_eq
+                + G.T @ y_ineq
+                + penalty * (C.T @ (C @ x - d) + G_mod.T @ (G_mod @ x - h))
+            )
+            dx = lhs.LDLT_solve(rhs)
+            x = x + dx
+        else:
+            al = partial(
+                augmented_lagrangian, y_eq=y_eq, y_ineq=y_ineq, penalty=penalty
+            )
 
-        lhs = jax.hessian(al)(x)
-        rhs = -jax.grad(al)(x)
+            lhs = jax.hessian(al)(x)
+            rhs = -jax.grad(al)(x)
 
-        f = jax.scipy.linalg.cho_factor(lhs)
-        dx = jax.scipy.linalg.cho_solve(f, rhs)
-        x = x + dx
+            f = jax.scipy.linalg.cho_factor(lhs)
+            dx = jax.scipy.linalg.cho_solve(f, rhs)
+            x = x + dx
+
         eq, ineq = evaluate_constraints(x)
 
         # Update dual variables

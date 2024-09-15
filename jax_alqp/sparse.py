@@ -36,6 +36,15 @@ class Matrix:
             return None
         return self.data[data_index]
 
+    def __add__(self, other):
+        assert self.shape == other.shape
+        nz_set = set(self.nz).union(set(other.nz))
+        nz = list(nz_set)
+        data = np.zeros(len(nz))
+        for k, ij in enumerate(nz):
+            data = data.at[k].set((self.at(ij) or 0.0) + (other.at(ij) or 0.0))
+        return Matrix(shape=self.shape, nz=nz, data=data)
+
     def __matmul__(self, other):
         if isinstance(other, Matrix):
             assert self.shape[1] == other.shape[0]
@@ -45,7 +54,7 @@ class Matrix:
             for i in range(self.shape[0]):
                 for j in range(other.shape[1]):
                     for k in range(self.shape[1]):
-                        if (i, j) in self.nz_inv and (k, j) in other.nz_inv:
+                        if (i, k) in self.nz_inv and (k, j) in other.nz_inv:
                             prod_nz.append((i, j))
             # Fill the data.
             prod_data = np.zeros(len(prod_nz))
@@ -69,9 +78,25 @@ class Matrix:
             out = out.at[i].set(out[i] + self.data[k] * other[j])
         return out
 
+    def __rmul__(self, other):
+        if np.isscalar(other):
+            data = np.copy(self.data)
+            data = other * data
+            return Matrix(shape=self.shape, nz=self.nz, data=data)
+
+        assert len(other.shape) == 1
+        assert other.shape[0] == self.shape[0]
+        data = np.empty(len(self.nz))
+        for k, ij in enumerate(self.nz):
+            i, _ = ij
+            data = data.at[k].set(other[i] * self.data[k])
+        return Matrix(shape=self.shape, nz=self.nz, data=data)
+
     def transpose(self):
+        assert len(self.shape) == 2
+        shape = [self.shape[1], self.shape[0]]
         nz = [(ij[1], ij[0]) for ij in self.nz]
-        return Matrix(shape=self.shape, nz=nz, data=self.data)
+        return Matrix(shape=shape, nz=nz, data=self.data)
 
     @property
     def T(self):

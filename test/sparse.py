@@ -7,33 +7,51 @@ import jax
 
 import itertools
 
-from primal_dual_ilqr.linalg_helpers import ldlt
-
 
 class Test(parameterized.TestCase):
     def setUp(self):
         super(Test, self).setUp()
 
-    def testSparseMatrix(self):
+    def testSparseAddition(self):
+        A = Matrix.fromdense(np.array([[1.0, 0.0], [0.0, 4.0]]))
+        B = Matrix.fromdense(np.array([[0.0, 2.0], [3.0, 0.0]]))
+        C = A + B
+        C_sol = np.array([[1.0, 2.0], [3.0, 4.0]])
+        self.assertTrue(np.linalg.norm(C.todense() - C_sol) < 1e-6)
+
+    def testSparseElementMultiplication(self):
+        A_dense = np.array([[1.0, 2.0], [3.0, 4.0]])
+        v = np.array([1.0, 0.0])
+        A = Matrix.fromdense(A_dense)
+        C = v * A
+        C_sol = v.reshape([2, 1]) * A_dense
+        self.assertTrue(np.linalg.norm(C.todense() - C_sol) < 1e-6)
+
+    def testSparseMatrixMultiplication(self):
+        A_dense = np.array([[1.0], [1.0]])
+        B_dense = np.array([[1.0, 1.0]])
+        A = Matrix.fromdense(A_dense)
+        B = Matrix.fromdense(B_dense)
+        C = A @ B
+        C_sol = A_dense @ B_dense
+        self.assertTrue(np.linalg.norm(C.todense() - C_sol) < 1e-6)
+
+    def testSparseXTX(self):
         M_nz = list(itertools.product(range(3), range(3)))
         M_data = np.arange(9, dtype=np.float64)
-        M = Matrix(shape=[3, 3], nz=M_nz, data=M_data)
+        M = Matrix(shape=(3, 3), nz=M_nz, data=M_data)
         MTM = M.XTX()
-        L, D_diag = MTM.LDLT()
         MTM_sol = np.arange(9).reshape([3, 3]).T @ np.arange(9).reshape([3, 3])
-        L_sol, D_diag_sol = ldlt(MTM_sol)
-        for i in range(3):
-            for j in range(3):
-                self.assertTrue(abs(MTM.at((i, j)) - MTM_sol[i, j]) < 1e-6)
-                self.assertTrue(abs(L.at((i, j)) - L_sol[i, j]) < 1e-6)
-            self.assertTrue(abs(D_diag[i] - D_diag_sol[i]) < 1e-6)
-        MTM.data = MTM.data.at[MTM.nz_inv[(0, 0)]].set(MTM.at((0, 0)) + 1.0)
-        MTM.data = MTM.data.at[MTM.nz_inv[(1, 1)]].set(MTM.at((1, 1)) + 1.0)
-        MTM.data = MTM.data.at[MTM.nz_inv[(2, 2)]].set(MTM.at((2, 2)) + 1.0)
+        self.assertTrue(np.linalg.norm(MTM.todense() - MTM_sol) < 1e-6)
+
+    def testSparseLDLTSolve(self):
+        MTM = Matrix.fromdense(
+            np.arange(9).reshape([3, 3]).T @ np.arange(9).reshape([3, 3])
+            + np.eye(3)
+        )
         x = MTM.LDLT_solve(np.array([343.0, 422.0, 501.0]))
         x_sol = np.array([1.0, 2.0, 3.0])
-        for i in range(3):
-            self.assertTrue(abs(x[i] - x_sol[i]) < 1e-6)
+        self.assertTrue(np.linalg.norm(x - x_sol) < 1e-6)
 
 
 if __name__ == "__main__":

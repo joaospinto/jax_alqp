@@ -7,7 +7,6 @@ dependencies = [
   "jax[cpu]; platform_system != \"Linux\"",
   "jax[cuda12]; platform_system == \"Linux\"",
   "numpy",
-  "primal_dual_ilqr @ git+https://github.com/joaospinto/primal_dual_ilqr",
 ]
 authors = [
   {name = "Joao Sousa-Pinto", email = "joaospinto@gmail.com"},
