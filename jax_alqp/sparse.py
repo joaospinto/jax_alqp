@@ -30,10 +30,10 @@ class Matrix:
         self.nz_inv = self._build_nz_inv(nz)
         self.data = data
 
-    def at(self, ij: tuple[int, int]):
+    def at(self, ij: tuple[int, int], default=None):
         data_index = self.nz_inv.get(ij, None)
         if data_index is None:
-            return None
+            return default
         return self.data[data_index]
 
     def __add__(self, other):
@@ -42,7 +42,7 @@ class Matrix:
         nz = list(nz_set)
         data = np.zeros(len(nz))
         for k, ij in enumerate(nz):
-            data = data.at[k].set((self.at(ij) or 0.0) + (other.at(ij) or 0.0))
+            data = data.at[k].set(self.at(ij, 0.0) + other.at(ij, 0.0))
         return Matrix(shape=self.shape, nz=nz, data=data)
 
     def __matmul__(self, other):
@@ -132,7 +132,7 @@ class Matrix:
         # Fill L and D_diag via the recursion rule above.
         for i in range(n):
             L.data = L.data.at[L.nz_inv[(i, i)]].set(1.0)
-            D_diag = D_diag.at[i].set(self.at((i, i)) or 0.0)
+            D_diag = D_diag.at[i].set(self.at((i, i), 0.0))
 
         for i in range(n):
             for j in range(i):
@@ -175,7 +175,7 @@ class Matrix:
         for i in range(n):
             z = z.at[i].set(rhs[i])
             for j in range(i):
-                z = z.at[i].set(z[i] - (L.at((i, j)) or 0.0) * z[j])
+                z = z.at[i].set(z[i] - L.at((i, j), 0.0) * z[j])
         # Solve D y = z
         y = np.empty(n)
         for i in range(n):
@@ -185,7 +185,7 @@ class Matrix:
         for i in range(n - 1, -1, -1):
             x = x.at[i].set(y[i])
             for j in range(n - 1, i, -1):
-                x = x.at[i].set(x[i] - (L_T.at((i, j)) or 0.0) * x[j])
+                x = x.at[i].set(x[i] - L_T.at((i, j), 0.0) * x[j])
         return x
 
     def todense(self):
