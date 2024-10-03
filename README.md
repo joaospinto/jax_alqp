@@ -14,4 +14,6 @@ by adding a small amount of regularization (similarly to what OSQP does).
 
 My motivation for writing this simple solver is that OSQP often struggles to solve problems
 to high accuracy in a reasonable number of iterations. It would be interesting to benchmark
-this simple solver against PIQP, and possibly implementing the latter in JAX.
+this simple solver against PIQP, and possibly implementing the latter in JAX. My expectation
+is that IPM solvers such as PIQP would perform better in the worst case and be more robust,
+but perhaps take more iterations on easier problems.

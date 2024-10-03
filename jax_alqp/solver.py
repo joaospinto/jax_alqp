@@ -19,6 +19,7 @@ def solve(
     *,
     max_al_iterations=10,
     c_threshold=1e-6,
+    primal_violation_threshold=1e-6,
     complementary_slackness_threshold=1e-6,
     penalty_init=1.0,
     penalty_update_rate=10.0,
@@ -102,8 +103,11 @@ def solve(
 
             it_ok = iteration_al < max_al_iterations
 
+            primal_residual = P.T @ x + q + C.T @ y_eq + G.T @ y_ineq
+            primal_violation = np.max(np.abs(primal_residual))
+
             succeeded = np.logical_and(
-                max_constraint_violation <= c_threshold,
+                np.logical_and(max_constraint_violation <= c_threshold, primal_violation <= primal_violation_threshold),
                 max_complementary_slack <= complementary_slackness_threshold,
             )
 
@@ -190,6 +194,7 @@ def solve_in_osqp_format(
     *,
     max_al_iterations=10,
     c_threshold=1e-6,
+    primal_violation_threshold=1e-6,
     complementary_slackness_threshold=1e-6,
     penalty_init=1.0,
     penalty_update_rate=10.0,
@@ -235,6 +240,7 @@ def solve_in_osqp_format(
         ws_x=ws_x_in,
         max_al_iterations=max_al_iterations,
         c_threshold=c_threshold,
+        primal_violation_threshold=primal_violation_threshold,
         complementary_slackness_threshold=complementary_slackness_threshold,
         penalty_init=penalty_init,
         penalty_update_rate=penalty_update_rate,
@@ -252,6 +258,7 @@ def sparse_solver_exporter(
     *,
     max_al_iterations=10,
     c_threshold=1e-6,
+    primal_violation_threshold=1e-6,
     complementary_slackness_threshold=1e-6,
     penalty_init=1.0,
     penalty_update_rate=10.0,
