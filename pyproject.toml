@@ -1,7 +1,7 @@
 [project]
 name = "jax_alqp"
 version = "0.1"
-requires-python = ">= 3.12"
+requires-python = ">= 3.11"
 dependencies = [
   "absl-py",
   "jax[cpu]; platform_system != \"Linux\"",
